@@ -15,9 +15,26 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     
     //カテゴリーの検索結果を表示
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-            taskArray = taskArray.filter("category == '\(searchBar.text ?? "")'")
+        if searchBar.text == "" {
+            let realm = try! Realm()
+            taskArray = realm.objects(Task.self)
+        }
+        else {
+            taskArray = taskArray.filter("category = '\(searchBar.text ?? "")'")
             tableView.reloadData()
+            
+        }
+        
+    }
     
+    
+    //キャンセルボタン押下時
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchText.isEmpty {
+            let realm = try! Realm()
+            taskArray = realm.objects(Task.self)
+            tableView.reloadData()
+        }
     }
     
     //Realmのインスタンス
@@ -38,12 +55,12 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     
     //segueで画面遷移時に呼ばれる
     override func prepare(for segue: UIStoryboardSegue, sender: Any?){
-    let inputViewController:InputViewController = segue.destination as! InputViewController
-    
+        let inputViewController:InputViewController = segue.destination as! InputViewController
+        
         if segue.identifier == "cellSegue" {
-                    let indexPath = self.tableView.indexPathForSelectedRow
-                    inputViewController.task = taskArray[indexPath!.row]
-                }else{
+            let indexPath = self.tableView.indexPathForSelectedRow
+            inputViewController.task = taskArray[indexPath!.row]
+        }else{
             let task = Task()
             
             let allTasks = realm.objects(Task.self)
@@ -53,7 +70,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
             
             inputViewController.task = task
         }
-}
+    }
     
     //データの数(=セルの数)を返すメゾット
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -68,7 +85,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         //Cellに値を設定
         let task = taskArray [indexPath.row]
         cell.textLabel?.text = "[\(task.category ?? "")]\(task.title)" //変数名と文字列を結合　nillだったら""
-    
+        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyy-MM-dd HH:mm"
         
@@ -93,15 +110,32 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         
         if editingStyle == .delete {
             
+            // 削除するタスクを取得する
+            let task = self.taskArray[indexPath.row]
+            
+            // ローカル通知をキャンセルする
+            let center = UNUserNotificationCenter.current()
+            center.removePendingNotificationRequests(withIdentifiers: [String(task.id)])
+            
             //データベースから削除する
             try! realm.write {
-            self.realm.delete(self.taskArray[indexPath.row])
-            tableView.deleteRows(at: [indexPath], with: .fade)
+                self.realm.delete(self.taskArray[indexPath.row])
+                tableView.deleteRows(at: [indexPath], with: .fade)
             }
+            
+            // 未通知のローカル通知一覧をログ出力
+            center.getPendingNotificationRequests { (requests: [UNNotificationRequest]) in
+                for request in requests {
+                    print("/---------------")
+                    print(request)
+                    print("---------------/")
+                }
+            }
+            
         }
     }
-//入力画面から戻ってきたら tableViewを更新
-    override func viewDidAppear(_ animated: Bool) {
+    // 入力画面から戻ってきた時に TableView を更新
+    override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tableView.reloadData()
     }
