@@ -27,14 +27,11 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         
     }
     
-    
     //キャンセルボタン押下時
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        if searchText.isEmpty {
-            let realm = try! Realm()
-            taskArray = realm.objects(Task.self)
-            tableView.reloadData()
-        }
+        let realm = try! Realm()
+        taskArray = realm.objects(Task.self)
+        tableView.reloadData()
     }
     
     //Realmのインスタンス
